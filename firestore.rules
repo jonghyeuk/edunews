@@ -1,0 +1,29 @@
+// Firestore 보안 규칙
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 뉴스 컬렉션 - 읽기는 모두 허용, 쓰기는 함수만
+    match /news/{document} {
+      allow read: if true;
+      allow write: if false; // Cloud Functions에서만 쓰기 가능
+    }
+    
+    // 구독자 컬렉션 - 생성은 허용, 읽기/수정은 제한
+    match /subscribers/{document} {
+      allow create: if true; // 구독 신청 허용
+      allow read, update, delete: if false; // 관리자만 접근
+    }
+    
+    // 통계 컬렉션 - 읽기만 허용
+    match /analytics/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // 관리자 컬렉션 - 모든 접근 차단 (함수에서만 사용)
+    match /admin/{document} {
+      allow read, write: if false;
+    }
+  }
+}
