@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>입시뉴스 - 주간 교육청 소식</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
+    
+    <!-- PWA 설정 -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2a5298">
+    
+    <style>
+        /* 입시뉴스 웹사이트 스타일링 */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+        
+        /* 로딩 스피너 */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 1.2em;
+            color: #666;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2a5298;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 헤더 */
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .masthead {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 2.5em;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .tagline {
+            text-align: center;
+            font-size: 1.1em;
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+        
+        .date-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+            border-top: 1px solid rgba(255,255,255,0.3);
+            padding-top: 15px;
+        }
+        
+        .update-time {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8em;
+        }
+        
+        /* 메인 컨테이너 */
+        .main-container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 30px;
+        }
+        
+        /* 메인 콘텐츠 */
+        .main-content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        /* 기사 스타일 */
+        .article {
+            padding: 30px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .article:last-child {
+            border-bottom: none;
+        }
+        
+        .article.featured {
+            background: linear-gradient(135deg, #fff5f5 0%, #fff 100%);
+            border-left: 4px solid #dc3545;
+        }
+        
+        .headline {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1.8em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #1e3c72;
+            line-height: 1.3;
+        }
+        
+        .subheading {
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2a5298;
+        }
+        
+        .meta-info {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        
+        .source-tag {
+            background: #e7f3ff;
+            color: #0056b3;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        
+        .urgent-tag {
+            background: #fff3cd;
+            color: #856404;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        
+        .article-text {
+            font-size: 1em;
+            line-height: 1.7;
+            margin-bottom: 15px;
+        }
+        
+        /* 섹션 헤더 */
+        .section-header {
+            background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+            color: white;
+            padding: 15px 30px;
+            font-family: 'Noto Serif KR', serif;
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+        
+        /* 다중 컬럼 레이아웃 */
+        .multi-column {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        .column-article {
+            padding: 20px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        
+        /* 사이드바 */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        /* 광고 영역 */
+        .ad-space {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            height: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .ad-space:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .ad-space.large {
+            height: 600px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .ad-content {
+            z-index: 2;
+            position: relative;
+        }
+        
+        .ad-title {
+            font-size: 1.2em;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .ad-subtitle {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 12px;
+        }
+        
+        .ad-features {
+            font-size: 0.8em;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+        
+        .science-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        /* 빠른 정보 박스 */
+        .quick-info {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        .quick-info h3 {
+            color: #2a5298;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 8px;
+        }
+        
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                margin: 20px auto;
+                padding: 0 15px;
+            }
+            
+            .multi-column {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .masthead {
+                font-size: 2em;
+            }
+            
+            .headline {
+                font-size: 1.5em;
+            }
+            
+            .article {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1 class="masthead">🎓 입시뉴스</h1>
+            <p class="tagline">전국 교육청 입시정보 한눈에 보기</p>
+            <div class="date-info">
+                <span id="current-week">주간소식 로딩중...</span>
+                <span class="update-time">⏰ 실시간 업데이트</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <main class="main-content">
+            <!-- 로딩 표시 -->
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                최신 입시뉴스를 불러오는 중...
+            </div>
+            
+            <!-- 뉴스 컨텐츠 (동적으로 로드) -->
+            <div id="news-content" style="display: none;">
+                <!-- Firebase에서 로드된 뉴스가 여기에 표시됩니다 -->
+            </div>
+        </main>
+
+        <aside class="sidebar">
+            <!-- Little Science AI 광고 -->
+            <div class="ad-space" onclick="window.open('https://www.littlescienceai.com', '_blank')">
+                <div class="ad-content">
+                    <div class="science-icon">🔬</div>
+                    <div class="ad-title">과학소논문 주제선정</div>
+                    <div class="ad-subtitle">AI가 추천하는 맞춤형 연구주제</div>
+                    <div class="ad-features">생기부 완성 • 진로 연계 • 전문가 검증</div>
+                </div>
+            </div>
+
+            <!-- 구독 서비스 -->
+            <div class="ad-space" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);" onclick="subscribeNewsletter()">
+                <div class="ad-content">
+                    <div class="science-icon">📧</div>
+                    <div class="ad-title">입시뉴스 무료구독</div>
+                    <div class="ad-subtitle">매주 월요일 아침 8시 정확 배송</div>
+                    <div class="ad-features">이메일 • 문자 • 카카오톡 알림</div>
+                </div>
+            </div>
+
+            <!-- 세종과학교실 광고 -->
+            <div class="ad-space large" onclick="window.open('http://sejongclass.co.kr', '_blank')">
+                <div class="ad-content">
+                    <div class="science-icon">🔬</div>
+                    <div class="ad-title">세종과학교실</div>
+                    <div class="ad-subtitle">학교로 찾아가는 실험수업</div>
+                    <div class="ad-features">
+                        🧪 박사급 전문 강사진<br>
+                        🎯 진로연계 실험 프로그램<br>
+                        🏫 학교 직접 방문 수업<br>
+                        📚 학생부종합전형 대비<br><br>
+                        <strong>이공계 꿈나무들을 위한 특별한 경험!</strong>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Firebase 초기화 및 앱 로직 -->
+    <script>
+        // Firebase 설정 (실제 config로 교체 필요)
+        const firebaseConfig = {
+            // Firebase 프로젝트 설정값으로 교체
+            apiKey: "your-api-key",
+            authDomain: "education-news-site.firebaseapp.com",
+            projectId: "education-news-site",
+            storageBucket: "education-news-site.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "your-app-id"
+        };
+
+        // Firebase 초기화
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        // Analytics 초기화
+        firebase.analytics();
+
+        // 뉴스 데이터 로드
+        async function loadNews() {
+            try {
+                // Firestore에서 최신 뉴스 가져오기
+                const newsSnapshot = await db.collection('news')
+                    .orderBy('created_at', 'desc')
+                    .limit(10)
+                    .get();
+
+                if (newsSnapshot.empty) {
+                    // 뉴스가 없으면 샘플 뉴스 표시
+                    showSampleNews();
+                    return;
+                }
+
+                const articles = [];
+                newsSnapshot.forEach(doc => {
+                    articles.push(doc.data());
+                });
+
+                displayNews(articles);
+            } catch (error) {
+                console.error('뉴스 로딩 오류:', error);
+                showSampleNews();
+            }
+        }
+
+        // 뉴스 표시
+        function displayNews(articles) {
+            const newsContent = document.getElementById('news-content');
+            const loading = document.getElementById('loading');
+            
+            let html = '';
+            
+            // 주요 뉴스 (첫 번째 기사)
+            if (articles[0]) {
+                html += `
+                    <article class="article featured">
+                        <h2 class="headline">${articles[0].title}</h2>
+                        <div class="meta-info">
+                            <span class="meta-item">📍 ${articles[0].source}</span>
+                            <span class="meta-item">📅 ${formatDate(articles[0].created_at)}</span>
+                            <span class="source-tag">${articles[0].source}</span>
+                            <span class="urgent-tag">최신</span>
+                        </div>
+                        <p class="article-text">${articles[0].summary || articles[0].content}</p>
+                    </article>
+                `;
+            }
+            
+            // 교육청 섹션
+            const educationOfficeNews = articles.filter(article => 
+                article.category === 'education_office' || article.source.includes('교육청')
+            ).slice(0, 4);
+            
+            if (educationOfficeNews.length > 0) {
+                html += `
+                    <section>
+                        <div class="section-header">🏛️ 시도교육청 주요 공지사항</div>
+                        <div class="multi-column">
+                `;
+                
+                educationOfficeNews.forEach(article => {
+                    html += `
+                        <article class="column-article">
+                            <h3 class="subheading">${article.source}</h3>
+                            <div class="meta-info">
+                                <span class="source-tag">${article.source}</span>
+                                <span class="meta-item">📅 ${formatDate(article.created_at)}</span>
+                            </div>
+                            <p class="article-text">${article.summary || article.content}</p>
+                        </article>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </section>
+                `;
+            }
+            
+            newsContent.innerHTML = html;
+            
+            // 로딩 숨기고 컨텐츠 표시
+            loading.style.display = 'none';
+            newsContent.style.display = 'block';
+            
+            // 현재 날짜 업데이트
+            updateCurrentDate();
+        }
+
+        // 샘플 뉴스 표시 (Firestore에 데이터가 없을 때)
+        function showSampleNews() {
+            const newsContent = document.getElementById('news-content');
+            const loading = document.getElementById('loading');
+            
+            newsContent.innerHTML = `
+                <article class="article featured">
+                    <h2 class="headline">Firebase 입시뉴스 사이트가 정상적으로 배포되었습니다!</h2>
+                    <div class="meta-info">
+                        <span class="meta-item">📍 시스템</span>
+                        <span class="meta-item">📅 ${new Date().toLocaleDateString()}</span>
+                        <span class="source-tag">시스템 알림</span>
+                        <span class="urgent-tag">확인</span>
+                    </div>
+                    <p class="article-text">
+                        축하합니다! Firebase 기반 입시뉴스 사이트가 성공적으로 배포되었습니다. 
+                        크롤링 시스템이 활성화되면 실제 교육청 뉴스가 자동으로 업데이트됩니다.
+                    </p>
+                </article>
+                
+                <section>
+                    <div class="section-header">🚀 다음 단계</div>
+                    <div class="multi-column">
+                        <article class="column-article">
+                            <h3 class="subheading">크롤링 시스템 활성화</h3>
+                            <p class="article-text">Cloud Functions를 배포하여 교육청 웹사이트에서 자동으로 뉴스를 수집합니다.</p>
+                        </article>
+                        <article class="column-article">
+                            <h3 class="subheading">스케줄링 설정</h3>
+                            <p class="article-text">매주 월요일 오전 8시에 자동으로 최신 뉴스를 업데이트하도록 설정합니다.</p>
+                        </article>
+                    </div>
+                </section>
+            `;
+            
+            loading.style.display = 'none';
+            newsContent.style.display = 'block';
+            updateCurrentDate();
+        }
+
+        // 날짜 포맷팅
+        function formatDate(timestamp) {
+            if (!timestamp) return new Date().toLocaleDateString();
+            
+            let date;
+            if (timestamp.toDate) {
+                date = timestamp.toDate();
+            } else {
+                date = new Date(timestamp);
+            }
+            
+            return date.toLocaleDateString('ko-KR');
+        }
+
+        // 현재 날짜 업데이트
+        function updateCurrentDate() {
+            const now = new Date();
+            const weekStart = new Date(now.setDate(now.getDate() - now.getDay() + 1));
+            const weekEnd = new Date(now.setDate(now.getDate() - now.getDay() + 7));
+            
+            const formatWeek = (date) => {
+                return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+            };
+            
+            document.getElementById('current-week').textContent = 
+                `${formatWeek(weekStart)} ~ ${formatWeek(weekEnd)} 주간소식`;
+        }
+
+        // 구독 신청 (간단한 버전)
+        function subscribeNewsletter() {
+            const email = prompt('이메일 주소를 입력하세요:');
+            if (email) {
+                // Firestore에 구독자 정보 저장
+                db.collection('subscribers').add({
+                    email: email,
+                    subscribed_at: firebase.firestore.FieldValue.serverTimestamp(),
+                    active: true
+                }).then(() => {
+                    alert('구독 신청이 완료되었습니다! 📧');
+                }).catch(error => {
+                    console.error('구독 신청 오류:', error);
+                    alert('구독 신청 중 오류가 발생했습니다.');
+                });
+            }
+        }
+
+        // 실시간 뉴스 업데이트 감지
+        function setupRealtimeUpdates() {
+            db.collection('news')
+                .orderBy('created_at', 'desc')
+                .limit(1)
+                .onSnapshot(snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            // 새 뉴스가 추가되면 알림
+                            showNewNewsNotification();
+                        }
+                    });
+                });
+        }
+
+        // 새 뉴스 알림
+        function showNewNewsNotification() {
+            // 간단한 알림 (실제로는 더 예쁜 알림 구현)
+            if (Notification.permission === 'granted') {
+                new Notification('📰 새로운 입시뉴스가 업데이트되었습니다!', {
+                    icon: '/icon-192x192.png',
+                    badge: '/icon-192x192.png'
+                });
+            }
+        }
+
+        // 알림 권한 요청
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
+        // 페이지 로드 시 실행
+        document.addEventListener('DOMContentLoaded', function() {
+            loadNews();
+            setupRealtimeUpdates();
+            requestNotificationPermission();
+            
+            // 페이지 조회 이벤트 기록
+            firebase.analytics().logEvent('page_view', {
+                page_title: '입시뉴스 메인페이지',
+                page_location: window.location.href
+            });
+        });
+    </script>
+</body>
+</html>
